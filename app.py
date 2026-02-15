@@ -29,22 +29,47 @@ def upload_file():
         names = []
         
         if file.filename.endswith('.csv'):
-            # Parse CSV file
+            # Parse CSV file - treat each cell as a separate name
             csv_reader = csv.reader(io.StringIO(file_content))
             for row in csv_reader:
-                # Add all non-empty values from each row
-                names.extend([name.strip() for name in row if name.strip()])
+                for name in row:
+                    name = name.strip()
+                    if name:
+                        names.append(name)
         else:
-            # Parse TXT file (one name per line)
-            names = [line.strip() for line in file_content.split('\n') if line.strip()]
+            # Parse TXT file - handle both newlines AND commas
+            for line in file_content.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Check if line contains commas (CSV-style in TXT)
+                if ',' in line:
+                    # Split by comma
+                    parts = line.split(',')
+                    for part in parts:
+                        name = part.strip()
+                        if name:
+                            names.append(name)
+                else:
+                    # Single name per line
+                    names.append(line)
         
         if not names:
             return jsonify({'error': 'No names found in file'}), 400
         
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_names = []
+        for name in names:
+            if name not in seen:
+                seen.add(name)
+                unique_names.append(name)
+        
         return jsonify({
             'success': True,
-            'total_names': len(names),
-            'names': names
+            'total_names': len(unique_names),
+            'names': unique_names
         })
     
     except Exception as e:
